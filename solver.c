@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 
 #define BOARD_HEIGHT 8
 #define BOARD_WIDTH 7
@@ -21,6 +22,8 @@ typedef struct solutions {
     int *board;
     struct solutions *next;
 }solutions;
+
+int gcount = 0;
 
 void print_shape(shapes *shape);
 shapes* load_shape_from_file(const char* file_name);
@@ -95,19 +98,23 @@ int main(int argc, char *argv[])
     generate_board(month, month_day, week_day, board);
     print_board(board);
 
-
+    clock_t start = clock();
     find_solutions(slist, board, sols);
+    clock_t end = clock();
+
+    double cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("Found %d solutions in %f seconds.\n", gcount, cpu_time_used);
     
     //Print solutions
-    int counter_sols = 0;
-    while(sols != NULL)
-    {
-        counter_sols++;
-        printf("-----Solution %d-----\n", counter_sols);
-        print_board(sols->board);
-        printf("\n");
-        sols = sols->next;
-    }
+    // int counter_sols = 0;
+    // while(sols != NULL)
+    // {
+    //     counter_sols++;
+    //     printf("-----Solution %d-----\n", counter_sols);
+    //     print_board(sols->board);
+    //     printf("\n");
+    //     sols = sols->next;
+    // }
 
     //Free list
     free_list(slist);
@@ -321,14 +328,14 @@ void add_shapes(shapes *new_shape, shapes_list *all_shapes){
     
     
     
-    isdone = mirror_shape(new_shape); //Flip
+    // isdone = mirror_shape(new_shape); //Flip
     
-    if(!isdone)
-        isdone = rotate_last_90_degrees(new_shape); //90deg rotations of flip
-    if (!isdone)
-        isdone = rotate_last_90_degrees(new_shape); //180deg rotations of flip
-    if (!isdone)
-        isdone = rotate_last_90_degrees(new_shape); //270deg rotations of flip
+    // if(!isdone)
+    //     isdone = rotate_last_90_degrees(new_shape); //90deg rotations of flip
+    // if (!isdone)
+    //     isdone = rotate_last_90_degrees(new_shape); //180deg rotations of flip
+    // if (!isdone)
+    //     isdone = rotate_last_90_degrees(new_shape); //270deg rotations of flip
 
     if ((all_shapes)->shapes == NULL)
     {
@@ -359,10 +366,6 @@ void add_shapes(shapes *new_shape, shapes_list *all_shapes){
 bool can_place(shapes *shape, int x, int y, int *board)
 {  
     int board_location = y * BOARD_WIDTH + x;
-
-    // If the slot is blocked
-    if (board[board_location] != 0)
-        return false;
 
     // Check if the shape is out of bounds
     if (y + shape->height > BOARD_HEIGHT || x + shape->width > BOARD_WIDTH)
@@ -521,7 +524,8 @@ void find_solutions(shapes_list *shapes_list, int *board, solutions *solutions)
         //     puts("ALREADY SEEN");
         // puts("New sol -- \n");
         // print_board(board);
-        save_board(solutions, board);
+        //save_board(solutions, board);
+        gcount ++;
         return;
     }
     
