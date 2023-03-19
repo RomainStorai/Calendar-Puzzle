@@ -7,25 +7,14 @@
 
 #define BOARD_HEIGHT 8
 #define BOARD_WIDTH 7
-#define BOARD_SIZE (sizeof(uint8_t) * BOARD_HEIGHT)
-
-
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
-#define BYTE_TO_BINARY(byte)  \
-  ((byte) & 0x80 ? '1' : '0'), \
-  ((byte) & 0x40 ? '1' : '0'), \
-  ((byte) & 0x20 ? '1' : '0'), \
-  ((byte) & 0x10 ? '1' : '0'), \
-  ((byte) & 0x08 ? '1' : '0'), \
-  ((byte) & 0x04 ? '1' : '0'), \
-  ((byte) & 0x02 ? '1' : '0'), \
-  ((byte) & 0x01 ? '1' : '0') 
+#define BOARD_SIZE (sizeof(int_fast8_t) * BOARD_HEIGHT * BOARD_WIDTH)
 
 typedef struct shapes
 {
     int height, width;
     struct shapes *next;
-    uint8_t *mask;
+    int_fast8_t *data;
+    uint64_t *mask;
 } shapes;
 
 typedef struct shapes_list
@@ -34,8 +23,15 @@ typedef struct shapes_list
     struct shapes_list *next;
 } shapes_list;
 
+typedef struct solutions
+{
+    int_fast8_t *board;
+    struct solutions *next;
+} solutions;
+
 int gcount = 0;
 
+void create_mask(const shapes *shape, uint64_t *mask);
 shapes *load_shape_from_file(const char *file_name);
 void print_shape(const shapes *shape);
 void print_all_shapes(shapes *shape);
@@ -47,15 +43,16 @@ bool shapes_equal(const shapes *shape_1, const shapes *shape_2);
 bool shape_equal_in_list(const shapes *shape, shapes *other_shapes);
 bool rotate_last_90_degrees(shapes *shape);
 bool mirror_shape(shapes *shape);
-void add_shapes(shapes *new_shape, shapes_list *shapes_list, const bool mirror);
-bool can_place(const shapes *shape, const int x, const int y, const uint8_t *board);
-void place(const shapes *shape, const int x, const int y, uint8_t *board);
+void add_shapes(shapes *new_shape, shapes_list *shapes_list);
+bool can_place(const shapes *shape, const int x, const int y, const int_fast8_t *board);
+void place(const shapes *shape, const int x, const int y, int_fast8_t *board);
 
-void print_board(const uint8_t *board);
-void mark_date(const int month, const int month_day, const int day, uint8_t *board);
-void generate_board(const int month, const int month_day, const int day, uint8_t *board);
+void print_board(const int_fast8_t *board);
+void mark_date(const int month, const int month_day, const int day, int_fast8_t *board);
+void generate_board(const int month, const int month_day, const int day, int_fast8_t *board);
+void save_board(solutions *solutions, const int_fast8_t *board);
 
-void find_solutions(const shapes_list *shapes_list, const uint8_t *board);
+void find_solutions(const shapes_list *shapes_list, const int_fast8_t *board, solutions *solutions);
 
 int main(int argc, char *argv[])
 {
@@ -83,39 +80,24 @@ int main(int argc, char *argv[])
     {
         sprintf(filename, "shapes/%d.txt", i);
         shapes *shape = load_shape_from_file(filename);
-        add_shapes(shape, slist, false);
+        add_shapes(shape, slist);
         printf("Loaded shape %d\n\n", i);
         print_all_shapes(shape);
     }
 
     // TODO : check if number of slots - 3 are filled
 
-    uint8_t *board = (uint8_t *)malloc(BOARD_SIZE);
-    board[0] = 0;
-    board[1] = 0;
-    board[2] = 0;
-    board[3] = 0;
-    board[4] = 0;
-    board[5] = 0;
-    board[6] = 0;
-    board[7] = 0;
+    solutions *sols = (solutions *)malloc(sizeof(solutions));
+    sols->next = NULL;
+    sols->board = NULL;
+
+    int_fast8_t board[BOARD_HEIGHT * BOARD_WIDTH] = {0};
     generate_board(month, month_day, week_day, board);
     puts("=== Initial Board ===");
     print_board(board);
-    // int x = 5;
-    // int y = 4;
-    // if (can_place(slist->shapes, x, y, board))
-    // {
-    //     puts(" ");
-    //     place(slist->shapes, x, y, board);
-    // } else
-    //     puts("Can't place");
-    // print_board(board);
-
-    // exit(1);
 
     clock_t start = clock();
-    find_solutions(slist, board);
+    find_solutions(slist, board, sols);
     clock_t end = clock();
 
     double cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
@@ -136,11 +118,26 @@ int main(int argc, char *argv[])
     free_list(slist);
 }
 
+void create_mask(const shapes *shape, uint64_t *mask)
+{
+    for (int i = 0; i < shape->height; i++)
+    {
+        for (int j = 0; j < shape->width; j++)
+        {
+            if (shape->data[i * shape->width + j] != 0)
+            {
+                *mask |= (1ULL << (i * shape->width + j));
+            }
+        }
+    }
+}
+
 shapes *load_shape_from_file(const char *file_name)
 {
     shapes *shape = (shapes *)malloc(sizeof(shapes));
 
     FILE *fp;
+    int i;
 
     fp = fopen(file_name, "r");
     if (fp == NULL)
@@ -154,46 +151,34 @@ shapes *load_shape_from_file(const char *file_name)
     fscanf(fp, "%d", &shape->height);
     fscanf(fp, "%d", &shape->width);
 
-    uint8_t *mask = (uint8_t *)malloc(sizeof(uint8_t) * shape->height);
-    if (mask == NULL)
+    shape->data = (int_fast8_t *)malloc(shape->height * shape->width * sizeof(int_fast8_t));
+    if (shape->data == NULL)
     {
         fprintf(stderr, "Erreur : Impossible d'allouer de la mémoire\n");
         exit(1);
     }
 
-    int data;
-    uint8_t *current_line;
-    for (int i = 0; i < shape->height; i++)
+    for (i = 0; i < shape->height * shape->width; i++)
     {
-        current_line = mask + i;
-        *current_line = 0;
-        for (int j = 0; j < shape->width; j++)
-        {
-            fscanf(fp, "%d", &data);
-            if (data != 0)
-                *(mask + i) |= 1ULL << j;
-        }
+        fscanf(fp, "%d", &shape->data[i]);
     }
 
-    shape->mask = mask;
-
     fclose(fp);
+
+    uint64_t *mask = (uint64_t*)malloc(sizeof(uint64_t));
+    create_mask(shape, mask);
+    shape->mask = mask;
 
     return shape;
 }
 
 void print_shape(const shapes *shape)
 {
-    uint8_t *mask = shape->mask;
-
     for (int i = 0; i < shape->height; i++)
     {
         for (int j = 0; j < shape->width; j++)
         {
-            if (*(mask + i) & (1ULL << j))
-                printf("1 ");
-            else
-                printf(". ");
+            printf("%d ", shape->data[i * shape->width + j]);
         }
         printf("\n");
     }
@@ -222,7 +207,7 @@ void print_shape_list(shapes_list *list)
 
 void free_shapes(shapes *shape)
 {
-    free(shape->mask);
+    free(shape->data);
     free(shape);
 }
 
@@ -255,14 +240,15 @@ bool shapes_equal(const shapes *shape_1, const shapes *shape_2)
     if ((shape_1->width != shape_2->width) || (shape_1->height != shape_2->height))
         return false;
 
-    uint8_t *mask_1 = shape_1->mask;
-    uint8_t *mask_2 = shape_2->mask;
-
     // Then compare the contents
-    for (int i = 0; i < shape_1->height; i++)
+    for (int y = 0; y < shape_1->height; y++)
     {
-        if (*(mask_1 + i) != *(mask_2 + i))
-            return false;
+        int i = y * shape_1->width;
+        for (int x = 0; x < shape_1->width; x++)
+        {
+            if (shape_1->data[i + x] != shape_2->data[i + x])
+                return false;
+        }
     }
 
     return true;
@@ -297,27 +283,23 @@ bool rotate_last_90_degrees(shapes *shape)
 
     new_shape->width = current->height;
     new_shape->height = current->width;
-    new_shape->next = NULL;
 
-    uint8_t *mask = (uint8_t *)malloc(sizeof(uint8_t) * new_shape->height);
-
-    uint8_t *current_line;
+    // Create array for new data and manually allocate memory
+    int_fast8_t *n_data = (int_fast8_t *)malloc(sizeof(int_fast8_t) * new_shape->width * new_shape->height);
 
     // Loop over shape and rotate it 90deg by swapping x and y when getting from original shape
-    for (int i = 0; i < new_shape->height; i++)
+    for (int y = 0; y < new_shape->height; y++)
     {
-        current_line = mask + i;
-        *current_line = 0;
-        for (int j = 0; j < new_shape->width; j++)
-        {
-            if (*(current->mask + current->height - 1 - j) & (1ULL << i))
-            {
-                *(mask + i) |= (1ULL << j);
-            }
-        }
+        int i = y * new_shape->width;
+        for (int x = 0; x < new_shape->width; x++)
+            n_data[i + x] = current->data[(current->height - x - 1) * current->width + y];
     }
 
-    // Add mask to shape
+    // Add array to shape
+    new_shape->data = n_data;
+
+    uint64_t *mask = (uint64_t*)malloc(sizeof(uint64_t));
+    create_mask(new_shape, mask);
     new_shape->mask = mask;
 
     // Check if shape already in shapes array
@@ -326,6 +308,8 @@ bool rotate_last_90_degrees(shapes *shape)
         free_shapes(new_shape);
         return true;
     }
+
+    new_shape->next = NULL;
 
     shapes *temp = shape;
 
@@ -341,42 +325,40 @@ bool rotate_last_90_degrees(shapes *shape)
 
 bool mirror_shape(shapes *shape)
 {
-    shapes *current = shape;
-
     // Declare new shape
-    shapes *new_shape = (shapes *)malloc(sizeof(shapes));
+    shapes *new_shape = malloc(sizeof(shapes));
 
-    new_shape->width = current->width;
-    new_shape->height = current->height;
-    new_shape->next = NULL;
+    new_shape->width = shape->width;
+    new_shape->height = shape->height;
 
-    uint8_t *mask = (uint8_t *)malloc(sizeof(uint8_t) * new_shape->height);
-
-    uint8_t *current_line;
-
-    // Loop over shape and mirror it by swapping x and y when getting from original shape
-    for (int i = 0; i < new_shape->height; i++)
+    // Create array for new data and manually allocate memory
+    int_fast8_t *n_data = (int_fast8_t *)malloc(sizeof(int_fast8_t) * new_shape->width * new_shape->height);
+    // Loop over shape and rotate it 90deg by swapping x and y when getting from original shape
+    for (int y = 0; y < new_shape->height; y++)
     {
-        current_line = mask + i;
-        *current_line = 0;
-        for (int j = 0; j < new_shape->width; j++)
+        int i = y * new_shape->width;
+        for (int x = 0; x < new_shape->width; x++)
         {
-            if (*(current->mask + i) & (1ULL << (new_shape->width - 1 - j)))
-            {
-                *(mask + i) |= (1ULL << j);
-            }
+            int j = i + x;
+            n_data[j] = shape->data[shape->width - x - 1 + i];
         }
     }
 
-    // Add mask to shape
+    // Add array to shape
+    new_shape->data = n_data;
+    
+    uint64_t *mask = (uint64_t*)malloc(sizeof(uint64_t));
+    create_mask(new_shape, mask);
     new_shape->mask = mask;
 
-    // Check if shape already in shapes array
+    // Check if shape is not symetric to the shape created
     if (shape_equal_in_list(new_shape, shape))
     {
         free_shapes(new_shape);
         return true;
     }
+
+    new_shape->next = NULL;
 
     shapes *temp = shape;
 
@@ -390,7 +372,7 @@ bool mirror_shape(shapes *shape)
     return false;
 }
 
-void add_shapes(shapes *new_shape, shapes_list *all_shapes, const bool mirror)
+void add_shapes(shapes *new_shape, shapes_list *all_shapes)
 {
     // For each rotation create a shape and make it from the previous shape,
     // then check it isn't equal to other shapes in list
@@ -401,17 +383,14 @@ void add_shapes(shapes *new_shape, shapes_list *all_shapes, const bool mirror)
     if (!isdone)
         isdone = rotate_last_90_degrees(new_shape); // 270deg rotations
 
-    if (mirror)
-    {
-        isdone = mirror_shape(new_shape); // Flip
+    // isdone = mirror_shape(new_shape); //Flip
 
-        if (!isdone)
-            isdone = rotate_last_90_degrees(new_shape); // 90deg rotations of flip
-        if (!isdone)
-            isdone = rotate_last_90_degrees(new_shape); // 180deg rotations of flip
-        if (!isdone)
-            isdone = rotate_last_90_degrees(new_shape); // 270deg rotations of flip
-    }
+    // if(!isdone)
+    //     isdone = rotate_last_90_degrees(new_shape); //90deg rotations of flip
+    // if (!isdone)
+    //     isdone = rotate_last_90_degrees(new_shape); //180deg rotations of flip
+    // if (!isdone)
+    //     isdone = rotate_last_90_degrees(new_shape); //270deg rotations of flip
 
     if ((all_shapes)->shapes == NULL)
     {
@@ -421,6 +400,11 @@ void add_shapes(shapes *new_shape, shapes_list *all_shapes, const bool mirror)
     }
 
     shapes_list *new_list = (shapes_list *)malloc(sizeof(shapes_list));
+
+    // new_list->next = *all_shapes;
+    // new_list->shapes = new_shape;
+
+    // *all_shapes = new_list;
 
     new_list->next = NULL;
     new_list->shapes = new_shape;
@@ -434,88 +418,126 @@ void add_shapes(shapes *new_shape, shapes_list *all_shapes, const bool mirror)
     current->next = new_list;
 }
 
-bool can_place(const shapes *shape, const int x, const int y, const uint8_t *board)
+bool can_place(const shapes *shape, const int x, const int y, const int_fast8_t *board)
 {
     // Check if the shape is out of bounds
-
-    int width = shape->width;
-    if (y < 0 || x < 0 || y + shape->height > BOARD_HEIGHT || x + width > BOARD_WIDTH)
+    if (y + shape->height > BOARD_HEIGHT || x + shape->width > BOARD_WIDTH)
         return false;
 
-    uint8_t *mask = shape->mask;
-
+    // For each marker of the shape, we check if there is a collision
+    int iw;
     for (int i = 0; i < shape->height; i++)
     {
-        if ((*(board + i + y) & (*(mask + i) << x)) != 0)
-            return false;
+        iw = i * shape->width;
+        for (int j = 0; j < shape->width; j++)
+        {
+            if (shape->data[iw + j] == 0)
+                continue;
+            // There is a collision, we stop
+            if (board[(i + y) * BOARD_WIDTH + j + x] != 0)
+                return false;
+        }
     }
 
     return true;
 }
 
-void place(const shapes *shape, const int x, const int y, uint8_t *board)
+void place(const shapes *shape, const int x, const int y, int_fast8_t *board)
 {
-    int width = shape->width;
-    uint8_t *mask = shape->mask;
-
+    int iw;
     for (int i = 0; i < shape->height; i++)
     {
-        *(board + i + y) |= (*(mask + i) << x);
+        iw = i * shape->width;
+        for (int j = 0; j < shape->width; j++)
+        {
+            if (shape->data[iw + j] == 0)
+                continue;
+            board[(i + y) * BOARD_WIDTH + j + x] = shape->data[iw + j];
+        }
     }
 }
 
-void print_board(const uint8_t *board)
+void print_board(const int_fast8_t *board)
 {
     for (int i = 0; i < BOARD_HEIGHT; i++)
     {
-        uint8_t line = *(board + i);
         for (int j = 0; j < BOARD_WIDTH; j++)
         {
-            if (line & (1ULL << j))
-                printf("1 ");
-            else
-                printf(". ");
+            printf("%d\t", board[i * BOARD_WIDTH + j]);
         }
         printf("\n");
     }
 }
 
-void mark_date(const int month, const int month_day, const int day, uint8_t *board)
+void mark_date(const int month, const int month_day, const int day, int_fast8_t *board)
 {
-    // 1 on the board corresponds to a block (not placeable slot)
+    // -1 on the board corresponds to a block (not placeable slot)
+    // Defining the month position (0 1 2 3 4 5 - 6 7 8 9 10 11)
     if (month <= 5)
-        board[0] |= 1UL << month;
+        board[month] = -1;
     else
-        board[1] |= 1UL << month;
+        board[month + 1] = -1;
 
-    // Defining the month-day position
-    board[(month_day / 7) + 2] |= 1UL << (month_day % 7);
+    // Defining the month-day position (months + 2)
+    board[month_day + 14] = -1;
 
-    // Defining the day
+    // Defining the day (months + 2 + days + 0 1 2 3 + 4 + 4 5 6)
     if (day <= 3)
-        board[6] |= 1UL << (day + 3);
+        board[day + 45] = -1;
     else
-        board[7] |= 1UL << day;
+        board[day + 49] = -1;
 }
 
-void generate_board(const int month, const int month_day, const int day, uint8_t *board)
+void generate_board(const int month, const int month_day, const int day, int_fast8_t *board)
 {
     // First blocks the date slots
     mark_date(month, month_day, day, board);
 
     // Blocks the border slots
-    board[0] |= 1UL << 6;
-    board[1] |= 1UL << 6;
-    board[7] |= 0x0F; // 0 0 0 0 1 1 1 1
+    board[6] = -1;
+    board[13] = -1;
+    board[49] = -1;
+    board[50] = -1;
+    board[51] = -1;
+    board[52] = -1;
 }
 
-void find_solutions(const shapes_list *shapes_list, const uint8_t *board)
+void save_board(solutions *solutions, const int_fast8_t *board)
+{
+    int_fast8_t *new_board = (int_fast8_t *)malloc(BOARD_SIZE);
+    memcpy(new_board, board, BOARD_SIZE);
+
+    if (solutions->board == NULL)
+    {
+        solutions->board = new_board;
+        return;
+    }
+
+    struct solutions *new_solution = (struct solutions *)malloc(sizeof(struct solutions));
+    new_solution->board = new_board;
+    new_solution->next = NULL;
+
+    struct solutions *temp = solutions;
+
+    while (temp->next != NULL)
+    {
+        temp = temp->next;
+    }
+
+    temp->next = new_solution;
+}
+
+void find_solutions(const shapes_list *shapes_list, const int_fast8_t *board, solutions *solutions)
 {
     if (shapes_list == NULL)
     {
-        gcount++;
-        // printf("New solutions ... %d in total\n", gcount++);
+        // print_board(board);
+        //  if (board_already_seen(board, solutions))
+        //      puts("ALREADY SEEN");
+        //  puts("New sol -- \n");
         //print_board(board);
+        save_board(solutions, board);
+        gcount++;
         return;
     }
 
@@ -532,12 +554,12 @@ void find_solutions(const shapes_list *shapes_list, const uint8_t *board)
                 if (can_place(current_shape, x, y, board))
                 {
                     // Copy board
-                    uint8_t *new_board = (uint8_t *)malloc(BOARD_SIZE);
+                    int_fast8_t *new_board = (int_fast8_t *)malloc(BOARD_SIZE);
                     memcpy(new_board, board, BOARD_SIZE);
                     // Place piece on board
                     place(current_shape, x, y, new_board);
 
-                    find_solutions(shapes_list->next, new_board);
+                    find_solutions(shapes_list->next, new_board, solutions);
                     free(new_board);
                 }
             }
