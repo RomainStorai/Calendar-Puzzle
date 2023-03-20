@@ -582,40 +582,41 @@ bool new_can_place(const shapes *shape, const int x, const int y, const uint8_t 
 {
     uint8_t *mask = shape->mask;
 
-    int i = shape->height;
-
-    while(i)
-    {
-        i--;
-
-        if (*(board + i + y) & (*(mask + i) << x))
-            return false;
-
-        *(new_board + i + y) = *(board + i + y) | (*(mask + i) << x);
-    }
-
-    // uint8_t *board_pointer = board + y;
-    // uint8_t *mask_pointer = shape->mask;
-    // uint8_t *new_board_pointer = new_board + y;
-
     // int i = shape->height;
 
     // while(i)
     // {
     //     i--;
 
-    //     uint8_t board_value = *(board + i + y);
-    //     uint8_t mask_value = *(mask + i) << x;
-
-    //     if (board_value & mask_value)
+    //     if (*(board + i + y) & (*(mask + i) << x))
     //         return false;
 
-    //     *(new_board_pointer) = board_value | mask_value;
-
-    //     // board_pointer++;
-    //     // mask_pointer++;
-    //     new_board_pointer++;
+    //     *(new_board + i + y) = *(board + i + y) | (*(mask + i) << x);
     // }
+
+    // uint8_t *board_pointer = board + y;
+    // uint8_t *mask_pointer = shape->mask;
+    uint8_t *new_board_pointer = new_board + y;
+
+    int i = shape->height;
+
+    while(i)
+    {
+        i--;
+    // for (int i = 0; i < shape->height; i++)
+    // {
+        uint8_t board_value = *(board + i + y);
+        uint8_t mask_value = *(mask + i) << x;
+
+        if (board_value & mask_value)
+            return false;
+
+        *(new_board_pointer + i) = board_value | mask_value;
+
+        // board_pointer++;
+        // mask_pointer++;
+        // new_board_pointer++;
+    }
 
 
     // i = y;
