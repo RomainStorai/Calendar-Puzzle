@@ -9,18 +9,6 @@
 #define BOARD_WIDTH 7
 #define BOARD_SIZE (sizeof(uint8_t) * BOARD_HEIGHT)
 
-
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
-#define BYTE_TO_BINARY(byte)  \
-  ((byte) & 0x80 ? '1' : '0'), \
-  ((byte) & 0x40 ? '1' : '0'), \
-  ((byte) & 0x20 ? '1' : '0'), \
-  ((byte) & 0x10 ? '1' : '0'), \
-  ((byte) & 0x08 ? '1' : '0'), \
-  ((byte) & 0x04 ? '1' : '0'), \
-  ((byte) & 0x02 ? '1' : '0'), \
-  ((byte) & 0x01 ? '1' : '0') 
-
 typedef struct shapes
 {
     int height, width;
@@ -102,17 +90,6 @@ int main(int argc, char *argv[])
     generate_board(month, month_day, week_day, board);
     puts("=== Initial Board ===");
     print_board(board);
-    // int x = 5;
-    // int y = 4;
-    // if (can_place(slist->shapes, x, y, board))
-    // {
-    //     puts(" ");
-    //     place(slist->shapes, x, y, board);
-    // } else
-    //     puts("Can't place");
-    // print_board(board);
-
-    // exit(1);
 
     clock_t start = clock();
     find_solutions(slist, board);
@@ -120,17 +97,6 @@ int main(int argc, char *argv[])
 
     double cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
     printf("Found %d solutions in %f seconds.\n", gcount, cpu_time_used);
-
-    // Print solutions
-    //  int counter_sols = 0;
-    //  while(sols != NULL)
-    //  {
-    //      counter_sols++;
-    //      printf("-----Solution %d-----\n", counter_sols);
-    //      print_board(sols->board);
-    //      printf("\n");
-    //      sols = sols->next;
-    //  }
 
     // Free list
     free_list(slist);
@@ -514,8 +480,6 @@ void find_solutions(const shapes_list *shapes_list, const uint8_t *board)
     if (shapes_list == NULL)
     {
         gcount++;
-        // printf("New solutions ... %d in total\n", gcount++);
-        //print_board(board);
         return;
     }
 

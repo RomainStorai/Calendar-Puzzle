@@ -12,6 +12,11 @@
   ((byte) & 0x02 ? '1' : '0'), \
   ((byte) & 0x01 ? '1' : '0') 
 
+void edit(int test[5])
+{
+    test[0] = 5;
+}
+
 int main()
 {
     uint8_t nb = 1;
@@ -19,4 +24,12 @@ int main()
     nb = nb << 8;
 
     printf("nb= "BYTE_TO_BINARY_PATTERN"\n", BYTE_TO_BINARY(nb));
+
+    int te[5] = {0};
+
+    printf("Before %d\n", te[0]);
+
+    edit(te);
+
+    printf("After %d\n", te[0]);
 }
