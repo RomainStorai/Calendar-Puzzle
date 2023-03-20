@@ -578,6 +578,60 @@ void place(const shapes *shape, const int x, const int y, uint8_t *board)
     // }
 }
 
+bool new_can_place(const shapes *shape, const int x, const int y, const uint8_t *board, uint8_t *new_board)
+{
+    uint8_t *mask = shape->mask;
+
+    // int i = shape->height;
+
+    // while(i)
+    // {
+    //     i--;
+
+    //     if (*(board + i + y) & (*(mask + i) << x))
+    //         return false;
+
+    //     *(new_board + i + y) = *(board + i + y) | (*(mask + i) << x);
+    // }
+
+    // uint8_t *board_pointer = board + y;
+    uint8_t *mask_pointer = shape->mask;
+    uint8_t *new_board_pointer = new_board + y;
+
+    int i = shape->height;
+
+    while(i)
+    {
+        i--;
+
+        uint8_t board_value = *(board + i + y);
+        uint8_t mask_value = *(mask_pointer) << x;
+
+        if (board_value & mask_value)
+            return false;
+
+        *(new_board_pointer) = board_value | mask_value;
+
+        // board_pointer++;
+        mask_pointer++;
+        new_board_pointer++;
+    }
+
+
+    // i = y;
+
+    // while(i)
+    // {
+    //     i--;
+    //     *(new_board + i)= *(board + i);
+    // }
+
+    // for (i = y + shape->height; i < BOARD_HEIGHT; i++)
+    //     *(new_board + i)= *(board + i);
+
+    return true;
+}
+
 void find_solutions(const shapes_list *shapes_list, const uint8_t *board)
 {
     if (shapes_list == NULL)
@@ -599,14 +653,18 @@ void find_solutions(const shapes_list *shapes_list, const uint8_t *board)
         {
             for (int x = 0; x < w; x++)
             {
-                if (can_place(current_shape, x, y, board))
+                uint8_t new_board[BOARD_HEIGHT];
+                memcpy(new_board, board, BOARD_SIZE);
+
+                if (new_can_place(current_shape, x, y, board, new_board)) // can_place(current_shape, x, y, board))
                 {
+
                     // Copy board
                     // uint8_t *new_board = (uint8_t *)malloc(BOARD_SIZE);
-                    uint8_t new_board[BOARD_SIZE];
-                    memcpy(new_board, board, BOARD_SIZE);
+                    // uint8_t new_board[BOARD_SIZE];
+                    // memcpy(new_board, board, BOARD_SIZE);
                     // Place piece on board
-                    place(current_shape, x, y, new_board);
+                    // place(current_shape, x, y, new_board);
 
                     find_solutions(shapes_list->next, new_board);
                     // free(new_board);
