@@ -488,7 +488,7 @@ void mark_date(const int month, const int month_day, const int day, uint8_t *boa
     if (month <= 5)
         board[0] |= 1UL << month;
     else
-        board[1] |= 1UL << month;
+        board[1] |= 1UL << month - 6;
 
     // Defining the month-day position
     board[(month_day / 7) + 2] |= 1UL << (month_day % 7);

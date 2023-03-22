@@ -1,0 +1,33 @@
+Starting search
+Month 0
+Can't find any solution for day 0 26 3.
+Month 1
+Can't find any solution for day 1 26 3.
+Month 2
+Can't find any solution for day 2 0 1.
+Can't find any solution for day 2 5 1.
+Can't find any solution for day 2 26 3.
+Month 3
+Can't find any solution for day 3 5 0.
+Can't find any solution for day 3 5 3.
+Can't find any solution for day 3 26 3.
+Month 4
+Can't find any solution for day 4 26 3.
+Month 5
+Can't find any solution for day 5 26 3.
+Month 6
+Can't find any solution for day 6 26 3.
+Month 7
+Can't find any solution for day 7 26 3.
+Month 8
+Can't find any solution for day 8 26 3.
+Month 9
+Can't find any solution for day 9 4 1.
+Can't find any solution for day 9 4 6.
+Can't find any solution for day 9 5 4.
+Can't find any solution for day 9 26 3.
+Month 10
+Can't find any solution for day 10 26 3.
+Month 11
+Can't find any solution for day 11 26 3.
+Terminated in 972.362687 seconds.

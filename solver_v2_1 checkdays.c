@@ -54,24 +54,8 @@ bool new_can_place(const shapes *shape, const int x, const int y, const uint8_t 
 
 bool exist_solution(const shapes_list *shapes_list, const uint8_t *board);
 
-int main(int argc, char *argv[])
+int main(int argc)
 {
-    //Get month, day and number from command line arguments
-    int month;
-    int month_day;
-    int week_day;
-    if (argc > 3)
-    {
-        month = atoi(argv[1]);
-        month_day = atoi(argv[2]);
-        week_day = atoi(argv[3]);
-    }
-    else
-    {
-        perror("Usage: ./solver month day week_day");
-        exit(1);
-    }
-
     //Make shapes
     shapes_list *slist = (shapes_list *)malloc(sizeof(shapes_list));
     slist->next = NULL;
@@ -89,16 +73,12 @@ int main(int argc, char *argv[])
 
     printf("Shapes have been loaded\n");
 
-    printf("\nLoading board\n");
-
-    uint8_t board[BOARD_HEIGHT] = {0};
-    generate_board(month, month_day, week_day, board);
-
-    printf("Board Loaded\n");
-
     printf("\nChecking board\n");
 
-    int board_spaces = count_free_spots(board);
+    uint8_t board_test[BOARD_HEIGHT] = {0};
+    generate_board(0, 0, 0, board_test);
+
+    int board_spaces = count_free_spots(board_test);
     int shape_blocks = 0;
     shapes_list *shape_list_hold = slist;
     while (shape_list_hold != NULL)
@@ -117,16 +97,27 @@ int main(int argc, char *argv[])
 
     printf("\nStarting search\n");
 
-    bool found;
     clock_t start = clock();
-    found = exist_solution(slist, board);
+    for (int i = 0; i <= 11; i++)
+    {
+        printf("Month %d\n", i);
+        for (int j = 0; j <= 30; j++)
+        {
+            for (int k = 0; k <= 6; k++)
+            {
+                uint8_t board[BOARD_HEIGHT] = {0};
+                generate_board(i, j, k, board);
+                if (!exist_solution(slist, board))
+                {
+                    printf("Can't find any solution for day %d %d %d.\n", i, j, k);
+                }
+            }
+        }        
+    }
     clock_t end = clock();
 
     double cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
-    if (found)
-        printf("Found a solution in %f seconds.\n", cpu_time_used);
-    else
-        printf("Didn't find a solution in %f seconds.\n", cpu_time_used);
+    printf("Terminated in %f seconds.\n", cpu_time_used);
 
     // Free list
     free_list(slist);
@@ -490,7 +481,7 @@ void mark_date(const int month, const int month_day, const int day, uint8_t *boa
     if (month <= 5)
         board[0] |= 1UL << month;
     else
-        board[1] |= 1UL << month;
+        board[1] |= 1UL << month - 6;
 
     // Defining the month-day position
     board[(month_day / 7) + 2] |= 1UL << (month_day % 7);
@@ -586,8 +577,7 @@ bool exist_solution(const shapes_list *shapes_list, const uint8_t *board)
 
                 if (new_can_place(current_shape, x, y, board, new_board))
                 {
-                    bool find = exist_solution(shapes_list->next, new_board);
-                    if (find)
+                    if (exist_solution(shapes_list->next, new_board))
                         return true;
                 }
 
