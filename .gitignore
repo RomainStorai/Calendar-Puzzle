@@ -1,3 +1,5 @@
 solver
 *.exe
 test
+countdays
+days_checker
