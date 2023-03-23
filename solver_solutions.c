@@ -35,8 +35,13 @@ typedef struct node_list
     struct node_list *next;
 }node_list;
 
+typedef struct pointers{
+    node *pointer;
+    struct pointers *next;
+}pointers;
+
 int gcount = 0;
-node_list *terminal_nodes;
+node_list *terminal_nodes = NULL;
 
 //Checking the board and shapes
 int count_free_spots(const uint8_t *mask);
@@ -47,10 +52,16 @@ void print_shape(const shapes *shape);
 void print_all_shapes(shapes *shape);
 void print_shape_list(shapes_list *list);
 
+void print_solution(node *nodes);
+void print_all_solutions();
+
 //Memory freeing
 void free_shapes(shapes *shape);
 void free_all_shapes(shapes *shape);
 void free_list(shapes_list *list);
+
+bool in_pointers(pointers *pointer, node *node);
+void free_node_list(node_list *list);
 
 //Shape generation
 shapes *load_shape_from_file(const char *file_name); //
@@ -134,14 +145,17 @@ int main(int argc, char *argv[])
     printf("\nStarting search\n");
 
     clock_t start = clock();
-    find_solutions(slist, board);
+    find_solutions(slist, board, NULL);
     clock_t end = clock();
 
     double cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
     printf("Found %d solutions in %f seconds.\n", gcount, cpu_time_used);
 
+    print_all_solutions();
+
     // Free list
     free_list(slist);
+    free_node_list(terminal_nodes);
 }
 
 //--------------------Pre-checks--------------------
@@ -213,6 +227,27 @@ void print_shape_list(shapes_list *list)
     }
 }
 
+void print_solution(node *nodes){
+    node *node_element = nodes;
+    while(node_element != NULL){
+        printf("\nPosition : (%d, %d)\n", node_element->x, node_element->y);
+        print_shape(node_element->shape);
+        node_element = node_element->parent;
+    }
+    printf("\n");
+}
+
+void print_all_solutions(){
+    int c = 0;
+    node_list *list_element = terminal_nodes;
+    while(list_element != NULL){
+        printf("---------Solution %d---------\n", c);
+        print_solution(list_element->node);
+        list_element = list_element->next;
+        c++;
+    }
+}
+
 //-------------------------Memory freeing-------------------------
 
 void free_shapes(shapes *shape)
@@ -244,6 +279,43 @@ void free_list(shapes_list *list)
     }
 }
 
+bool in_pointers(pointers *pointer, node *node){
+    while (pointer != NULL){
+        if (pointer->pointer == node)
+            return true;
+        pointer = pointer->next;
+    }
+    return false;
+}
+
+void free_node_list(node_list *list){
+    pointers *pointer = NULL;
+
+    node_list *temp_list;
+    while (list != NULL)
+    {
+        node *nodes = temp_list->node;
+        node *temp;
+        while (nodes != NULL)
+        {
+            if(!in_pointers(pointer, nodes))
+            {
+                pointers *new_pointer;
+                new_pointer->pointer = nodes;
+                new_pointer->next = pointer;
+                pointer = new_pointer;
+
+                temp = nodes;
+                nodes = nodes->parent;
+                free(temp);
+            }else
+                nodes = NULL;
+        }
+        temp_list = list;
+        list = list->next;
+        free(temp_list);
+    }
+}
 //-------------------------Shape Generation-------------------------
 
 shapes *load_shape_from_file(const char *file_name)
@@ -502,7 +574,7 @@ void mark_date(const int month, const int month_day, const int day, uint8_t *boa
     if (month <= 5)
         board[0] |= 1UL << month;
     else
-        board[1] |= 1UL << month;
+        board[1] |= 1UL << month - 6;
 
     // Defining the month-day position
     board[(month_day / 7) + 2] |= 1UL << (month_day % 7);
@@ -579,11 +651,18 @@ bool find_solutions(const shapes_list *shapes_list, const uint8_t *board, node *
 {
     if (shapes_list == NULL)
     {
+        node_list *new_element = (node_list *)malloc(sizeof(node_list));
+        new_element->node = parent;
+        new_element->next = terminal_nodes;
+        terminal_nodes = new_element;
+
         gcount++;
-        return;
+        return true;
     }
 
     shapes *current_shape = shapes_list->shapes;
+    
+    bool sol_in_tree = false;
 
     // For each shape variant
     while (current_shape != NULL)
@@ -601,8 +680,17 @@ bool find_solutions(const shapes_list *shapes_list, const uint8_t *board, node *
 
                 if (new_can_place(current_shape, x, y, board, new_board))
                 {
-                    node *new_node = (*node) malloc(sizeof(node));
-                    find_solutions(shapes_list->next, new_board);
+                    node *new_node = (node*) malloc(sizeof(node));
+                    bool sol_in_branch = find_solutions(shapes_list->next, new_board, new_node);
+                    if(sol_in_branch){
+                        new_node->x = x;
+                        new_node->y = y;
+                        new_node->shape = current_shape;
+                        new_node->parent = parent;
+                        sol_in_tree = true;
+                    }
+                    else
+                        free(new_node);
                 }
 
             }
@@ -610,4 +698,5 @@ bool find_solutions(const shapes_list *shapes_list, const uint8_t *board, node *
 
         current_shape = current_shape->next;
     }
+    return sol_in_tree;
 }
