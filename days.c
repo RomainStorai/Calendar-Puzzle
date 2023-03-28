@@ -24,21 +24,21 @@ typedef struct shapes_list
 
 int gcount = 0;
 
-//Checking the board and shapes
+// Checking the board and shapes
 int count_free_spots(const uint8_t *mask);
 int count_full_spots(const shapes *shape);
 
-//Debugging
+// Debugging
 void print_shape(const shapes *shape);
 void print_all_shapes(shapes *shape);
 void print_shape_list(shapes_list *list);
 
-//Memory freeing
+// Memory freeing
 void free_shapes(shapes *shape);
 void free_all_shapes(shapes *shape);
 void free_list(shapes_list *list);
 
-//Shape generation
+// Shape generation
 shapes *load_shape_from_file(const char *file_name); //
 bool shapes_equal(const shapes *shape_1, const shapes *shape_2);
 bool shape_equal_in_list(const shapes *shape, shapes *other_shapes);
@@ -46,24 +46,22 @@ bool rotate_last_90_degrees(shapes *shape);
 bool mirror_shape(shapes *shape);
 void add_shapes(shapes *new_shape, shapes_list *shapes_list, const bool mirror);
 
-//Board generation
+// Board generation
 void print_board(const uint8_t *board);
 void mark_date(const int month, const int month_day, const int day, uint8_t *board);
 void generate_board(const int month, const int month_day, const int day, uint8_t *board);
 
-//Solutions generation
+// Solutions generation
 bool new_can_place(const shapes *shape, const int x, const int y, const uint8_t *board, uint8_t *new_board);
 
 void exist_solution(const shapes_list *shapes_list, const uint8_t *board);
 
 int main(int argc)
 {
-    //Make shapes
+    // Make shapes
     shapes_list *slist = (shapes_list *)malloc(sizeof(shapes_list));
     slist->next = NULL;
     slist->shapes = NULL;
-
-    printf("\nLoading shapes\n");
 
     char filename[20];
     for (int i = 1; i <= 10; i++)
@@ -72,10 +70,6 @@ int main(int argc)
         shapes *shape = load_shape_from_file(filename);
         add_shapes(shape, slist, false);
     }
-
-    printf("Shapes have been loaded\n");
-
-    printf("\nChecking board\n");
 
     uint8_t board_test[BOARD_HEIGHT] = {0};
     generate_board(0, 0, 0, board_test);
@@ -89,15 +83,11 @@ int main(int argc)
         shape_list_hold = shape_list_hold->next;
     }
 
-    if(shape_blocks != board_spaces)
+    if (shape_blocks != board_spaces)
     {
         printf("The space which needs to be occupied on the board has %d spaces, the shapes however can fill %d spaces.\n", board_spaces, shape_blocks);
         return 0;
     }
-
-    printf("Board Checked\n");
-
-    printf("\nStarting search\n");
 
     clock_t start;
     clock_t end;
@@ -115,7 +105,7 @@ int main(int argc)
                 end = clock();
                 printf("%d;%d;%d;%d;%f\n", i, j, k, gcount, ((double)(end - start)) / CLOCKS_PER_SEC);
             }
-        }        
+        }
     }
 
     // Free list
@@ -523,7 +513,7 @@ void place(const shapes *shape, const int x, const int y, uint8_t *board)
 
     int i = shape->height;
 
-    while(i)
+    while (i)
     {
         i--;
         *(board + i + y) |= (*(mask + i) << x);
@@ -536,8 +526,8 @@ bool new_can_place(const shapes *shape, const int x, const int y, const uint8_t 
     uint8_t *new_board_pointer = new_board + y;
 
     int i = shape->height;
-    
-    while(i)
+
+    while (i)
     {
         i--;
 
@@ -581,7 +571,6 @@ void exist_solution(const shapes_list *shapes_list, const uint8_t *board)
                 {
                     exist_solution(shapes_list->next, new_board);
                 }
-
             }
         }
 
